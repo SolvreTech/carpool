@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatTime } from "@/lib/utils";
 
 interface Carpool {
   id: string;
@@ -18,13 +19,13 @@ export default function CarpoolCard({
   onBook,
 }: {
   carpool: Carpool;
-  onBook: (id: string) => void;
+  onBook: (id: string, date: string) => void;
 }) {
   const [booking, setBooking] = useState(false);
 
   async function handleBook() {
     setBooking(true);
-    await onBook(carpool.id);
+    await onBook(carpool.id, carpool.date);
     setBooking(false);
   }
 
@@ -36,7 +37,7 @@ export default function CarpoolCard({
         </h3>
         <p className="text-sm text-gray-500">Driver: {carpool.driverName}</p>
         <p className="text-sm text-gray-500">
-          {carpool.date} at {carpool.time}
+          {carpool.date} at {formatTime(carpool.time)}
         </p>
         <p className="text-sm text-gray-500">
           {carpool.availableSeats} seat{carpool.availableSeats !== 1 ? "s" : ""}{" "}

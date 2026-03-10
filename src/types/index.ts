@@ -7,3 +7,13 @@ export const ROUTES = [
 ] as const;
 
 export type Route = (typeof ROUTES)[number];
+
+export const DAY_LABELS = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+] as const;

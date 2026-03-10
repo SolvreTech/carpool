@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { DAY_LABELS } from "@/types";
+import { formatTime } from "@/lib/utils";
 import BlockRiderButton from "./block-rider-button";
 
 interface Rider {
   bookingId: string;
   riderId: string;
   riderName: string;
+  date: string;
   bookedAt: string;
 }
 
@@ -14,10 +17,9 @@ interface Carpool {
   id: string;
   route: string;
   customRoute: string | null;
-  date: string;
+  daysOfWeek: number[];
   time: string;
   totalSeats: number;
-  availableSeats: number;
   riders: Rider[];
 }
 
@@ -31,8 +33,12 @@ export default function MyCarpoolsList({
 
   const fetchCarpools = useCallback(async () => {
     const res = await fetch("/api/my-carpools");
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
     const data = await res.json();
-    setCarpools(data);
+    setCarpools(Array.isArray(data) ? data : []);
     setLoading(false);
   }, []);
 
@@ -41,7 +47,8 @@ export default function MyCarpoolsList({
   }, [refreshKey, fetchCarpools]);
 
   async function handleCancel(id: string) {
-    if (!confirm("Cancel this carpool? All bookings will be removed.")) return;
+    if (!confirm("Delete this carpool schedule? All bookings will be removed."))
+      return;
 
     const res = await fetch(`/api/carpools/${id}`, { method: "DELETE" });
     if (res.ok) {
@@ -68,30 +75,35 @@ export default function MyCarpoolsList({
                   : carpool.route}
               </h3>
               <p className="text-sm text-gray-500">
-                {carpool.date} at {carpool.time}
+                {carpool.daysOfWeek.map((d) => DAY_LABELS[d]).join(", ")} at{" "}
+                {formatTime(carpool.time)}
               </p>
               <p className="text-sm text-gray-500">
-                {carpool.totalSeats - carpool.availableSeats} /{" "}
-                {carpool.totalSeats} seats booked
+                {carpool.totalSeats} seat{carpool.totalSeats !== 1 ? "s" : ""}
               </p>
             </div>
             <button
               onClick={() => handleCancel(carpool.id)}
               className="text-sm text-red-600 hover:text-red-800"
             >
-              Cancel
+              Delete
             </button>
           </div>
           {carpool.riders.length > 0 && (
             <div className="mt-3 border-t border-gray-100 pt-3">
-              <p className="mb-2 text-sm font-medium text-gray-700">Riders:</p>
+              <p className="mb-2 text-sm font-medium text-gray-700">
+                Booked riders:
+              </p>
               <ul className="space-y-1">
                 {carpool.riders.map((rider) => (
                   <li
                     key={rider.bookingId}
                     className="flex items-center justify-between text-sm text-gray-600"
                   >
-                    <span>{rider.riderName}</span>
+                    <span>
+                      {rider.riderName}{" "}
+                      <span className="text-gray-400">({rider.date})</span>
+                    </span>
                     <BlockRiderButton
                       riderId={rider.riderId}
                       riderName={rider.riderName}

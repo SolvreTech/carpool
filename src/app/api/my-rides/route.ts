@@ -17,7 +17,7 @@ export async function GET() {
       driverName: users.fullName,
       route: carpools.route,
       customRoute: carpools.customRoute,
-      date: carpools.date,
+      date: bookings.date,
       time: carpools.time,
       bookedAt: bookings.createdAt,
     })
@@ -25,7 +25,7 @@ export async function GET() {
     .innerJoin(carpools, eq(bookings.carpoolId, carpools.id))
     .innerJoin(users, eq(carpools.driverId, users.id))
     .where(eq(bookings.riderUserId, session.user.id))
-    .orderBy(desc(carpools.date), desc(carpools.time));
+    .orderBy(desc(bookings.date), desc(carpools.time));
 
   return NextResponse.json(myRides);
 }

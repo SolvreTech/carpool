@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { carpools, bookings, users } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -15,17 +15,18 @@ export async function GET() {
       id: carpools.id,
       route: carpools.route,
       customRoute: carpools.customRoute,
-      date: carpools.date,
+      daysOfWeek: carpools.daysOfWeek,
       time: carpools.time,
       totalSeats: carpools.totalSeats,
-      availableSeats: carpools.availableSeats,
       createdAt: carpools.createdAt,
     })
     .from(carpools)
     .where(eq(carpools.driverId, session.user.id))
-    .orderBy(desc(carpools.date), desc(carpools.time));
+    .orderBy(carpools.time);
 
-  // For each carpool, get its riders
+  // For each carpool, get upcoming riders (bookings with dates >= today)
+  const today = new Date().toISOString().split("T")[0];
+
   const carpoolsWithRiders = await Promise.all(
     myCarpools.map(async (carpool) => {
       const riders = await db
@@ -33,6 +34,7 @@ export async function GET() {
           bookingId: bookings.id,
           riderId: bookings.riderUserId,
           riderName: users.fullName,
+          date: bookings.date,
           bookedAt: bookings.createdAt,
         })
         .from(bookings)

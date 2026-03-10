@@ -73,7 +73,6 @@ export async function POST(request: Request) {
     });
 
     // Auto-cancel all existing bookings by the blocked user on this driver's carpools
-    // Get the driver's carpool IDs
     const driverCarpools = await db
       .select({ id: carpools.id })
       .from(carpools)
@@ -82,10 +81,8 @@ export async function POST(request: Request) {
     const carpoolIds = driverCarpools.map((c) => c.id);
 
     if (carpoolIds.length > 0) {
-      // Find bookings to cancel
-      const bookingsToCancel = await db
-        .select()
-        .from(bookings)
+      await db
+        .delete(bookings)
         .where(
           and(
             eq(bookings.riderUserId, blockedUserId),
@@ -95,17 +92,6 @@ export async function POST(request: Request) {
             )})`
           )
         );
-
-      // Delete each booking and restore seats
-      for (const booking of bookingsToCancel) {
-        await db.delete(bookings).where(eq(bookings.id, booking.id));
-        await db
-          .update(carpools)
-          .set({
-            availableSeats: sql`${carpools.availableSeats} + 1`,
-          })
-          .where(eq(carpools.id, booking.carpoolId));
-      }
     }
 
     return NextResponse.json({ success: true }, { status: 201 });

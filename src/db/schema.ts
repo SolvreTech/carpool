@@ -16,23 +16,29 @@ export const carpools = pgTable("carpools", {
     .references(() => users.id),
   route: varchar("route", { length: 100 }).notNull(),
   customRoute: varchar("custom_route", { length: 255 }),
-  date: date("date").notNull(),
+  daysOfWeek: integer("days_of_week").array().notNull(), // 0=Sun, 1=Mon, ..., 6=Sat
   time: time("time").notNull(),
   totalSeats: integer("total_seats").notNull(),
-  availableSeats: integer("available_seats").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const bookings = pgTable("bookings", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  carpoolId: uuid("carpool_id")
-    .notNull()
-    .references(() => carpools.id, { onDelete: "cascade" }),
-  riderUserId: uuid("rider_user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const bookings = pgTable(
+  "bookings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    carpoolId: uuid("carpool_id")
+      .notNull()
+      .references(() => carpools.id, { onDelete: "cascade" }),
+    riderUserId: uuid("rider_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("booking_unique_idx").on(table.carpoolId, table.riderUserId, table.date),
+  ]
+);
 
 export const driverBlocks = pgTable(
   "driver_blocks",

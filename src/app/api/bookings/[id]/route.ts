@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { bookings, carpools } from "@/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { bookings } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 export async function DELETE(
   _request: Request,
@@ -15,7 +15,6 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // Delete booking and restore seat
   const [deleted] = await db
     .delete(bookings)
     .where(
@@ -29,14 +28,6 @@ export async function DELETE(
       { status: 404 }
     );
   }
-
-  // Restore the seat
-  await db
-    .update(carpools)
-    .set({
-      availableSeats: sql`${carpools.availableSeats} + 1`,
-    })
-    .where(eq(carpools.id, deleted.carpoolId));
 
   return NextResponse.json({ success: true });
 }

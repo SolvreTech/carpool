@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ROUTES } from "@/types";
+import { ROUTES, DAY_LABELS } from "@/types";
 
 export default function CreateCarpoolForm({
   onCreated,
@@ -11,10 +11,23 @@ export default function CreateCarpoolForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [route, setRoute] = useState("");
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+
+  function toggleDay(day: number) {
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+
+    if (selectedDays.length === 0) {
+      setError("Select at least one day");
+      return;
+    }
+
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
@@ -25,7 +38,7 @@ export default function CreateCarpoolForm({
       body: JSON.stringify({
         route: formData.get("route"),
         customRoute: formData.get("customRoute"),
-        date: formData.get("date"),
+        daysOfWeek: selectedDays,
         time: formData.get("time"),
         totalSeats: Number(formData.get("totalSeats")),
       }),
@@ -39,6 +52,7 @@ export default function CreateCarpoolForm({
     } else {
       (e.target as HTMLFormElement).reset();
       setRoute("");
+      setSelectedDays([]);
       onCreated();
     }
   }
@@ -81,29 +95,37 @@ export default function CreateCarpoolForm({
           />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Date
-          </label>
-          <input
-            name="date"
-            type="date"
-            required
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-700">
+          Days
+        </label>
+        <div className="flex gap-2">
+          {DAY_LABELS.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => toggleDay(i)}
+              className={`h-10 w-10 rounded-full text-sm font-medium transition ${
+                selectedDays.includes(i)
+                  ? "bg-blue-600 text-white"
+                  : "border border-gray-300 text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Time
-          </label>
-          <input
-            name="time"
-            type="time"
-            required
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          Time
+        </label>
+        <input
+          name="time"
+          type="time"
+          required
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">

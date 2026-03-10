@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { formatTime } from "@/lib/utils";
 
 interface Ride {
   bookingId: string;
@@ -19,8 +20,12 @@ export default function MyRidesList({ refreshKey }: { refreshKey: number }) {
 
   const fetchRides = useCallback(async () => {
     const res = await fetch("/api/my-rides");
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
     const data = await res.json();
-    setRides(data);
+    setRides(Array.isArray(data) ? data : []);
     setLoading(false);
   }, []);
 
@@ -56,7 +61,7 @@ export default function MyRidesList({ refreshKey }: { refreshKey: number }) {
             </h3>
             <p className="text-sm text-gray-500">Driver: {ride.driverName}</p>
             <p className="text-sm text-gray-500">
-              {ride.date} at {ride.time}
+              {ride.date} at {formatTime(ride.time)}
             </p>
           </div>
           <button

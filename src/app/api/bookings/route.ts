@@ -11,16 +11,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { carpoolId } = await request.json();
+    const { carpoolId, date } = await request.json();
 
-    if (!carpoolId) {
+    if (!carpoolId || !date) {
       return NextResponse.json(
-        { error: "Carpool ID is required" },
+        { error: "Carpool ID and date are required" },
         { status: 400 }
       );
     }
 
-    // Get the carpool to check the driver
+    // Get the carpool
     const [carpool] = await db
       .select()
       .from(carpools)
@@ -34,7 +34,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user is blocked by the driver (generic error to not reveal block)
+    // Verify the carpool runs on this day of week
+    const dayOfWeek = new Date(date + "T00:00:00").getUTCDay();
+    if (!carpool.daysOfWeek.includes(dayOfWeek)) {
+      return NextResponse.json(
+        { error: "Carpool no longer available" },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is blocked by the driver (generic error)
     const [block] = await db
       .select()
       .from(driverBlocks)
@@ -53,48 +62,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // Can't book your own carpool
-    if (carpool.driverId === session.user.id) {
-      return NextResponse.json(
-        { error: "You cannot book your own carpool" },
-        { status: 400 }
-      );
-    }
+    // TODO: re-enable before production
+    // // Can't book your own carpool
+    // if (carpool.driverId === session.user.id) {
+    //   return NextResponse.json(
+    //     { error: "You cannot book your own carpool" },
+    //     { status: 400 }
+    //   );
+    // }
 
-    // Check if already booked
+    // Check if already booked for this date
     const [existingBooking] = await db
       .select()
       .from(bookings)
       .where(
         and(
           eq(bookings.carpoolId, carpoolId),
-          eq(bookings.riderUserId, session.user.id)
+          eq(bookings.riderUserId, session.user.id),
+          eq(bookings.date, date)
         )
       )
       .limit(1);
 
     if (existingBooking) {
       return NextResponse.json(
-        { error: "You already booked this carpool" },
+        { error: "You already booked this carpool for this date" },
         { status: 409 }
       );
     }
 
-    // Atomically decrement available seats (race-condition safe)
-    const [updated] = await db
-      .update(carpools)
-      .set({
-        availableSeats: sql`${carpools.availableSeats} - 1`,
-      })
-      .where(
-        and(
-          eq(carpools.id, carpoolId),
-          sql`${carpools.availableSeats} > 0`
-        )
-      )
-      .returning();
+    // Check available seats for this specific date
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(bookings)
+      .where(and(eq(bookings.carpoolId, carpoolId), eq(bookings.date, date)));
 
-    if (!updated) {
+    if (count >= carpool.totalSeats) {
       return NextResponse.json(
         { error: "No seats available" },
         { status: 409 }
@@ -106,6 +109,7 @@ export async function POST(request: Request) {
       .values({
         carpoolId,
         riderUserId: session.user.id,
+        date,
       })
       .returning();
 

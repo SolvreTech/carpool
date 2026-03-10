@@ -11,23 +11,15 @@ export default function RiderPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Rider</h1>
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        <h1 className="mb-6 text-2xl font-bold text-gray-900">Find a Ride</h1>
+        <SearchCarpools onBooked={() => setRefreshKey((k) => k + 1)} />
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
-              Find a Ride
-            </h2>
-            <SearchCarpools onBooked={() => setRefreshKey((k) => k + 1)} />
-          </div>
-
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
-              My Rides
-            </h2>
-            <MyRidesList refreshKey={refreshKey} />
-          </div>
+        <div className="mt-10">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            My Booked Rides
+          </h2>
+          <MyRidesList refreshKey={refreshKey} />
         </div>
       </main>
     </div>
