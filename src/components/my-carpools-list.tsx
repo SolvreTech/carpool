@@ -3,7 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { DAY_LABELS } from "@/types";
 import { formatTime } from "@/lib/utils";
+import { getRouteDisplayNames } from "@/lib/routes";
 import BlockRiderButton from "./block-rider-button";
+import DriverTracking from "./driver-tracking";
+import Card from "./ui/card";
+import Badge from "./ui/badge";
+import Avatar from "./ui/avatar";
+import RouteTimeline from "./route-timeline";
+import EmptyState from "./ui/empty-state";
+import { SkeletonCard } from "./ui/skeleton";
 
 interface Rider {
   bookingId: string;
@@ -56,66 +64,106 @@ export default function MyCarpoolsList({
     }
   }
 
-  if (loading) return <p className="text-gray-500">Loading...</p>;
+  if (loading) return (
+    <div className="space-y-3">
+      {[1, 2].map((i) => <SkeletonCard key={i} />)}
+    </div>
+  );
+
   if (carpools.length === 0)
-    return <p className="text-gray-500">No carpools yet.</p>;
+    return (
+      <EmptyState
+        icon={
+          <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0H21" />
+          </svg>
+        }
+        title="No carpools yet"
+        description="Create your first carpool to get started"
+      />
+    );
 
   return (
     <div className="space-y-4">
-      {carpools.map((carpool) => (
-        <div
-          key={carpool.id}
-          className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-900">
-                {carpool.route === "Other"
-                  ? carpool.customRoute
-                  : carpool.route}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {carpool.daysOfWeek.map((d) => DAY_LABELS[d]).join(", ")} at{" "}
-                {formatTime(carpool.time)}
-              </p>
-              <p className="text-sm text-gray-500">
-                {carpool.totalSeats} seat{carpool.totalSeats !== 1 ? "s" : ""}
-              </p>
+      {carpools.map((carpool) => {
+        const routeNames = getRouteDisplayNames(carpool.route, carpool.customRoute);
+        return (
+          <Card key={carpool.id} className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0 flex-1">
+                {routeNames ? (
+                  <RouteTimeline
+                    origin={routeNames.origin}
+                    destination={routeNames.destination || undefined}
+                  />
+                ) : (
+                  <h3 className="font-semibold text-text">
+                    {carpool.route === "Other" ? carpool.customRoute : carpool.route}
+                  </h3>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {carpool.daysOfWeek.map((d) => (
+                    <Badge key={d} variant="primary">{DAY_LABELS[d]}</Badge>
+                  ))}
+                  <Badge variant="secondary">{formatTime(carpool.time)}</Badge>
+                  <Badge variant="secondary">
+                    {carpool.totalSeats} seat{carpool.totalSeats !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+              </div>
+              <button
+                onClick={() => handleCancel(carpool.id)}
+                className="shrink-0 rounded-full p-2 text-text-muted hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
             </div>
-            <button
-              onClick={() => handleCancel(carpool.id)}
-              className="text-sm text-red-600 hover:text-red-800"
-            >
-              Delete
-            </button>
-          </div>
-          {carpool.riders.length > 0 && (
-            <div className="mt-3 border-t border-gray-100 pt-3">
-              <p className="mb-2 text-sm font-medium text-gray-700">
-                Booked riders:
-              </p>
-              <ul className="space-y-1">
-                {carpool.riders.map((rider) => (
-                  <li
-                    key={rider.bookingId}
-                    className="flex items-center justify-between text-sm text-gray-600"
-                  >
-                    <span>
-                      {rider.riderName}{" "}
-                      <span className="text-gray-400">({rider.date})</span>
-                    </span>
-                    <BlockRiderButton
-                      riderId={rider.riderId}
-                      riderName={rider.riderName}
-                      onBlocked={fetchCarpools}
-                    />
-                  </li>
-                ))}
-              </ul>
+
+            {/* Tracking toggle */}
+            <div className="mt-3 border-t border-border-light pt-3">
+              <DriverTracking
+                carpoolId={carpool.id}
+                routeName={carpool.route === "Other" ? (carpool.customRoute || "Custom") : carpool.route}
+              />
             </div>
-          )}
-        </div>
-      ))}
+
+            {carpool.riders.length > 0 && (
+              <div className="mt-4 border-t border-border-light pt-3">
+                <p className="mb-2 text-xs font-medium text-text-secondary uppercase tracking-wide">
+                  Booked Riders
+                </p>
+                <div className="space-y-2">
+                  {carpool.riders.map((rider) => (
+                    <div
+                      key={rider.bookingId}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Avatar name={rider.riderName} size="sm" />
+                        <div>
+                          <span className="text-sm font-medium text-text">
+                            {rider.riderName}
+                          </span>
+                          <span className="ml-2 text-xs text-text-muted">
+                            {rider.date}
+                          </span>
+                        </div>
+                      </div>
+                      <BlockRiderButton
+                        riderId={rider.riderId}
+                        riderName={rider.riderName}
+                        onBlocked={fetchCarpools}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }

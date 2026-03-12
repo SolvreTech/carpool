@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import Button from "@/components/ui/button";
+import Input from "@/components/ui/input";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -45,93 +47,60 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-        <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">
-          Create Account
-        </h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <p className="rounded bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-          <div>
-            <label
-              htmlFor="fullName"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Full Name
-            </label>
-            <input
-              id="fullName"
-              name="fullName"
-              type="text"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="username"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Username
-            </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={6}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Confirm Password
-            </label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              minLength={6}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Creating account..." : "Register"}
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Sign in
-          </Link>
-        </p>
+    <div className="flex min-h-screen flex-col bg-primary-50">
+      {/* Green accent header */}
+      <div className="flex flex-col items-center justify-center bg-primary px-4 pb-12 pt-16">
+        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
+          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-white">Create Account</h1>
+        <p className="mt-1 text-sm text-white/70">Join Anatolia Carpool</p>
+      </div>
+
+      {/* White card bottom sheet */}
+      <div className="-mt-6 flex flex-1 justify-center">
+        <div className="w-full max-w-md rounded-t-3xl bg-white px-6 pt-8 pb-8 shadow-lg sm:mt-0 sm:rounded-3xl sm:mb-auto">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
+            )}
+            <div>
+              <label htmlFor="fullName" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Full Name
+              </label>
+              <Input id="fullName" name="fullName" type="text" required placeholder="Enter your full name" />
+            </div>
+            <div>
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Username
+              </label>
+              <Input id="username" name="username" type="text" required placeholder="Choose a username" />
+            </div>
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Password
+              </label>
+              <Input id="password" name="password" type="password" required minLength={6} placeholder="Min 6 characters" />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Confirm Password
+              </label>
+              <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} placeholder="Confirm your password" />
+            </div>
+            <Button type="submit" disabled={loading} className="w-full" size="lg">
+              {loading ? "Creating account..." : "Register"}
+            </Button>
+          </form>
+          <p className="mt-6 text-center text-sm text-text-secondary">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-primary hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

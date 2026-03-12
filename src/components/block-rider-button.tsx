@@ -39,7 +39,7 @@ export default function BlockRiderButton({
     <button
       onClick={handleBlock}
       disabled={loading}
-      className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+      className="rounded-full px-2 py-1 text-xs text-text-muted hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
     >
       {loading ? "..." : "Block"}
     </button>

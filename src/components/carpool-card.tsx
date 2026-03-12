@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { formatTime } from "@/lib/utils";
+import { getRouteDisplayNames } from "@/lib/routes";
+import Card from "./ui/card";
+import Avatar from "./ui/avatar";
+import Badge from "./ui/badge";
+import Button from "./ui/button";
+import RouteTimeline from "./route-timeline";
 
 interface Carpool {
   id: string;
@@ -22,6 +28,7 @@ export default function CarpoolCard({
   onBook: (id: string, date: string) => void;
 }) {
   const [booking, setBooking] = useState(false);
+  const routeNames = getRouteDisplayNames(carpool.route, carpool.customRoute);
 
   async function handleBook() {
     setBooking(true);
@@ -30,27 +37,39 @@ export default function CarpoolCard({
   }
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div>
-        <h3 className="font-semibold text-gray-900">
-          {carpool.route === "Other" ? carpool.customRoute : carpool.route}
-        </h3>
-        <p className="text-sm text-gray-500">Driver: {carpool.driverName}</p>
-        <p className="text-sm text-gray-500">
-          {carpool.date} at {formatTime(carpool.time)}
-        </p>
-        <p className="text-sm text-gray-500">
-          {carpool.availableSeats} seat{carpool.availableSeats !== 1 ? "s" : ""}{" "}
-          available
-        </p>
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <Avatar name={carpool.driverName} size="sm" />
+          <div className="min-w-0 flex-1">
+            {routeNames ? (
+              <RouteTimeline
+                origin={routeNames.origin}
+                destination={routeNames.destination || undefined}
+              />
+            ) : (
+              <h3 className="font-semibold text-text">
+                {carpool.route === "Other" ? carpool.customRoute : carpool.route}
+              </h3>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{carpool.driverName}</Badge>
+              <Badge variant="secondary">{carpool.date}</Badge>
+              <Badge variant="secondary">{formatTime(carpool.time)}</Badge>
+              <Badge variant="primary">
+                {carpool.availableSeats} seat{carpool.availableSeats !== 1 ? "s" : ""}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          onClick={handleBook}
+          disabled={booking}
+        >
+          {booking ? "..." : "Book"}
+        </Button>
       </div>
-      <button
-        onClick={handleBook}
-        disabled={booking}
-        className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-      >
-        {booking ? "Booking..." : "Book Seat"}
-      </button>
-    </div>
+    </Card>
   );
 }

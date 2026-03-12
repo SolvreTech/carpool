@@ -4,6 +4,8 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import Button from "@/components/ui/button";
+import Input from "@/components/ui/input";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,61 +35,48 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-        <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">
-          Anatolia Carpool
-        </h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <p className="rounded bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-          <div>
-            <label
-              htmlFor="username"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Username
-            </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-blue-600 hover:underline">
-            Register
-          </Link>
-        </p>
+    <div className="flex min-h-screen flex-col bg-primary-50">
+      {/* Green accent header */}
+      <div className="flex flex-col items-center justify-center bg-primary px-4 pb-12 pt-16">
+        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
+          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-white">Anatolia Carpool</h1>
+        <p className="mt-1 text-sm text-white/70">Sign in to continue</p>
+      </div>
+
+      {/* White card bottom sheet */}
+      <div className="-mt-6 flex flex-1 justify-center">
+        <div className="w-full max-w-md rounded-t-3xl bg-white px-6 pt-8 pb-8 shadow-lg sm:mt-0 sm:rounded-3xl sm:mb-auto">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
+            )}
+            <div>
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Username
+              </label>
+              <Input id="username" name="username" type="text" required placeholder="Enter your username" />
+            </div>
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Password
+              </label>
+              <Input id="password" name="password" type="password" required placeholder="Enter your password" />
+            </div>
+            <Button type="submit" disabled={loading} className="w-full" size="lg">
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+          <p className="mt-6 text-center text-sm text-text-secondary">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-medium text-primary hover:underline">
+              Register
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

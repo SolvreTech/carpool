@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { formatTime, getMonday, toDateString, getWeekDates, formatShortDate } from "@/lib/utils";
+import { getRouteDisplayNames } from "@/lib/routes";
+import Card from "./ui/card";
+import Button from "./ui/button";
+import Badge from "./ui/badge";
+import Avatar from "./ui/avatar";
+import RouteTimeline from "./route-timeline";
+import { SkeletonCard } from "./ui/skeleton";
 
 interface Carpool {
   id: string;
@@ -89,30 +96,38 @@ export default function SearchCarpools({
       <div className="mb-6 flex items-center justify-between">
         <button
           onClick={prevWeek}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-gray-50 transition-colors"
         >
-          Prev
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
         </button>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-semibold text-text">
             {formatShortDate(weekDates[0])} &ndash; {formatShortDate(weekDates[6])}
           </span>
           <button
             onClick={goToThisWeek}
-            className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
+            className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary hover:bg-emerald-100 transition-colors"
           >
             Today
           </button>
         </div>
         <button
           onClick={nextWeek}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-gray-50 transition-colors"
         >
-          Next
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
         </button>
       </div>
 
-      {loading && <p className="text-gray-500">Loading...</p>}
+      {loading && (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+        </div>
+      )}
 
       {!loading && (
         <div className="space-y-4">
@@ -123,67 +138,68 @@ export default function SearchCarpools({
             const isPast = dateStr < today;
 
             return (
-              <div
-                key={dateStr}
-                className={`rounded-lg border p-4 ${
-                  isToday
-                    ? "border-blue-300 bg-blue-50"
-                    : isPast
-                      ? "border-gray-100 bg-gray-50 opacity-60"
-                      : "border-gray-200 bg-white"
-                }`}
-              >
-                <h3
-                  className={`mb-2 text-sm font-semibold ${
-                    isToday ? "text-blue-700" : "text-gray-900"
-                  }`}
-                >
-                  {formatShortDate(date)}
-                  {isToday && " (Today)"}
-                </h3>
+              <div key={dateStr}>
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className={`text-sm font-semibold ${isToday ? "text-primary" : "text-text"}`}>
+                    {formatShortDate(date)}
+                  </h3>
+                  {isToday && <Badge variant="primary">Today</Badge>}
+                </div>
 
                 {rides.length === 0 ? (
-                  <p className="text-sm text-gray-400">No rides available</p>
+                  <p className={`text-sm ${isPast ? "text-text-muted" : "text-text-secondary"} mb-2`}>
+                    No rides available
+                  </p>
                 ) : (
-                  <div className="space-y-2">
-                    {rides.map((ride) => (
-                      <div
-                        key={ride.id}
-                        className="flex items-center justify-between rounded-md bg-white px-3 py-2 shadow-sm ring-1 ring-gray-200"
-                      >
-                        <div className="min-w-0">
-                          <span className="font-medium text-gray-900">
-                            {ride.route === "Other"
-                              ? ride.customRoute
-                              : ride.route}
-                          </span>
-                          <span className="mx-2 text-gray-300">|</span>
-                          <span className="text-sm text-gray-500">
-                            {ride.driverName}
-                          </span>
-                          <span className="mx-2 text-gray-300">|</span>
-                          <span className="text-sm text-gray-500">
-                            {formatTime(ride.time)}
-                          </span>
-                          <span className="mx-2 text-gray-300">|</span>
-                          <span className="text-sm text-gray-500">
-                            {ride.availableSeats} seat
-                            {ride.availableSeats !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        {!isPast && (
-                          <button
-                            onClick={() => handleBook(ride.id, dateStr)}
-                            disabled={bookingId === ride.id + dateStr}
-                            className="ml-3 shrink-0 rounded-md bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-                          >
-                            {bookingId === ride.id + dateStr
-                              ? "..."
-                              : "Book"}
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-3 mb-2">
+                    {rides.map((ride) => {
+                      const routeNames = getRouteDisplayNames(ride.route, ride.customRoute);
+                      return (
+                        <Card
+                          key={ride.id}
+                          className={`p-4 ${isPast ? "opacity-50" : ""}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <Avatar name={ride.driverName} size="sm" />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-semibold text-text truncate">
+                                    {ride.driverName}
+                                  </span>
+                                  <Badge variant="secondary">
+                                    {formatTime(ride.time)}
+                                  </Badge>
+                                </div>
+                                {routeNames ? (
+                                  <RouteTimeline
+                                    origin={routeNames.origin}
+                                    destination={routeNames.destination || undefined}
+                                    className="mt-2"
+                                  />
+                                ) : (
+                                  <p className="text-sm text-text-secondary">
+                                    {ride.route === "Other" ? ride.customRoute : ride.route}
+                                  </p>
+                                )}
+                                <p className="mt-2 text-xs text-text-muted">
+                                  {ride.availableSeats} seat{ride.availableSeats !== 1 ? "s" : ""} left
+                                </p>
+                              </div>
+                            </div>
+                            {!isPast && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleBook(ride.id, dateStr)}
+                                disabled={bookingId === ride.id + dateStr}
+                              >
+                                {bookingId === ride.id + dateStr ? "..." : "Book"}
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>

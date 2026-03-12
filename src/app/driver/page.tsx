@@ -5,38 +5,39 @@ import Link from "next/link";
 import Navbar from "@/components/navbar";
 import CreateCarpoolForm from "@/components/create-carpool-form";
 import MyCarpoolsList from "@/components/my-carpools-list";
+import Card from "@/components/ui/card";
 
 export default function DriverPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-secondary">
       <Navbar />
-      <main className="mx-auto max-w-4xl px-4 py-8">
+      <main className="mx-auto max-w-4xl px-4 py-6 pb-24 sm:pb-8">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Driver</h1>
+          <h1 className="text-2xl font-bold text-text">Driver</h1>
           <Link
             href="/driver/blocks"
-            className="text-sm text-gray-600 hover:text-gray-900"
+            className="rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-gray-200 transition-colors"
           >
-            Manage Blocked Riders
+            Blocked Riders
           </Link>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div>
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            <h2 className="mb-3 text-sm font-semibold text-text-secondary uppercase tracking-wide">
               Create Carpool
             </h2>
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <Card className="p-6">
               <CreateCarpoolForm
                 onCreated={() => setRefreshKey((k) => k + 1)}
               />
-            </div>
+            </Card>
           </div>
 
           <div>
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            <h2 className="mb-3 text-sm font-semibold text-text-secondary uppercase tracking-wide">
               My Carpools
             </h2>
             <MyCarpoolsList refreshKey={refreshKey} />

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, date, time, integer, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, date, time, integer, timestamp, uniqueIndex, boolean, doublePrecision } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -19,8 +19,29 @@ export const carpools = pgTable("carpools", {
   daysOfWeek: integer("days_of_week").array().notNull(), // 0=Sun, 1=Mon, ..., 6=Sat
   time: time("time").notNull(),
   totalSeats: integer("total_seats").notNull(),
+  isActive: boolean("is_active").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const driverLocations = pgTable(
+  "driver_locations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => users.id),
+    carpoolId: uuid("carpool_id")
+      .notNull()
+      .references(() => carpools.id, { onDelete: "cascade" }),
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    heading: doublePrecision("heading"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("driver_location_carpool_idx").on(table.carpoolId),
+  ]
+);
 
 export const bookings = pgTable(
   "bookings",
@@ -81,6 +102,17 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   rider: one(users, {
     fields: [bookings.riderUserId],
     references: [users.id],
+  }),
+}));
+
+export const driverLocationsRelations = relations(driverLocations, ({ one }) => ({
+  driver: one(users, {
+    fields: [driverLocations.driverId],
+    references: [users.id],
+  }),
+  carpool: one(carpools, {
+    fields: [driverLocations.carpoolId],
+    references: [carpools.id],
   }),
 }));
 
