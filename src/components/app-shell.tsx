@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -17,6 +18,17 @@ const navLinks = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.avatarUrl) setAvatarUrl(data.avatarUrl);
+      })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   return (
     <PageHeaderProvider>
@@ -45,10 +57,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {session?.user?.name && (
-                <Avatar name={session.user.name} size="sm" />
-              )}
-              <span className="text-sm text-text-secondary">{session?.user?.name}</span>
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-text-secondary hover:bg-gray-50 transition-colors"
+              >
+                {session?.user?.name && (
+                  <Avatar name={session.user.name} imageUrl={avatarUrl} size="sm" />
+                )}
+                <span>{session?.user?.name}</span>
+              </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 className="rounded-full px-3 py-1.5 text-sm text-text-secondary hover:bg-gray-50 transition-colors"

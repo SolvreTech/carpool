@@ -48,6 +48,7 @@ export default function CreateCarpoolForm({
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
   const [selectedSavedRouteId, setSelectedSavedRouteId] = useState<string | null>(null);
   const [saveRoute, setSaveRoute] = useState(false);
+  const [gasMoneyRequested, setGasMoneyRequested] = useState(false);
   const debouncePreviewRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchSavedRoutes = useCallback(async () => {
@@ -189,6 +190,7 @@ export default function CreateCarpoolForm({
         routeGeometry: routePreview?.geometry,
         routeDistance: routePreview?.distance,
         routeDuration: routePreview?.duration,
+        gasMoneyRequested,
       }),
     });
 
@@ -206,12 +208,12 @@ export default function CreateCarpoolForm({
       setRoutePreview(null);
       setSelectedSavedRouteId(null);
       setSaveRoute(false);
+      setGasMoneyRequested(false);
       onCreated();
     }
   }
 
   const isUsingSavedRoute = selectedSavedRouteId !== null;
-  const showForm = isUsingSavedRoute || routeName !== "" || origin !== null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -254,7 +256,7 @@ export default function CreateCarpoolForm({
             type="button"
             onClick={selectNewRoute}
             className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              !isUsingSavedRoute && showForm
+              !isUsingSavedRoute
                 ? "bg-primary text-white shadow-sm"
                 : "border border-border text-text-secondary hover:bg-primary-50 hover:text-primary"
             }`}
@@ -265,63 +267,68 @@ export default function CreateCarpoolForm({
       </div>
 
       {/* Route name + locations */}
-      {(isUsingSavedRoute || !isUsingSavedRoute) && (
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-text-secondary">
+      <div className="space-y-4">
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="text-sm font-medium text-text-secondary">
               Route Name
             </label>
-            <Input
-              type="text"
-              value={routeName}
-              onChange={(e) => setRouteName(e.target.value)}
-              placeholder="e.g. Morning Commute"
-              readOnly={isUsingSavedRoute}
-              className={isUsingSavedRoute ? "bg-gray-50" : ""}
-            />
+            {!isUsingSavedRoute && (
+              <button
+                type="button"
+                onClick={() => setSaveRoute(!saveRoute)}
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  saveRoute
+                    ? "bg-primary-50 text-primary"
+                    : "text-text-muted hover:text-text-secondary"
+                }`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                </svg>
+                {saveRoute ? "Saved" : "Save route"}
+              </button>
+            )}
           </div>
-          <LocationPicker
-            label="Origin"
-            value={origin}
-            onChange={setOrigin}
-            placeholder="Search for pickup location..."
+          <Input
+            type="text"
+            value={routeName}
+            onChange={(e) => setRouteName(e.target.value)}
+            placeholder="e.g. Morning Commute"
             readOnly={isUsingSavedRoute}
+            className={isUsingSavedRoute ? "bg-gray-50" : ""}
           />
-          <LocationPicker
-            label="Destination"
-            value={destination}
-            onChange={setDestination}
-            placeholder="Search for drop-off location..."
-            readOnly={isUsingSavedRoute}
-          />
-          {origin && destination && (
-            <div>
-              <RouteMap
-                origin={origin}
-                destination={destination}
-                routeGeometry={routePreview?.geometry}
-                className="h-48"
-              />
-              {routePreview && (
-                <p className="text-xs text-text-muted text-center mt-2">
-                  {formatDistance(routePreview.distance)} &middot; {formatDuration(routePreview.duration)}
-                </p>
-              )}
-            </div>
-          )}
-          {!isUsingSavedRoute && origin && destination && routeName.trim() && (
-            <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveRoute}
-                onChange={(e) => setSaveRoute(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-primary"
-              />
-              Save this route for future use
-            </label>
-          )}
         </div>
-      )}
+        <LocationPicker
+          label="Origin"
+          value={origin}
+          onChange={setOrigin}
+          placeholder="Search for pickup location..."
+          readOnly={isUsingSavedRoute}
+        />
+        <LocationPicker
+          label="Destination"
+          value={destination}
+          onChange={setDestination}
+          placeholder="Search for drop-off location..."
+          readOnly={isUsingSavedRoute}
+        />
+        {origin && destination && (
+          <div>
+            <RouteMap
+              origin={origin}
+              destination={destination}
+              routeGeometry={routePreview?.geometry}
+              className="h-48"
+            />
+            {routePreview && (
+              <p className="text-xs text-text-muted text-center mt-2">
+                {formatDistance(routePreview.distance)} &middot; {formatDuration(routePreview.duration)}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       <div>
         <label className="mb-2 block text-sm font-medium text-text-secondary">
@@ -363,6 +370,18 @@ export default function CreateCarpoolForm({
           defaultValue={3}
         />
       </div>
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={gasMoneyRequested}
+          onChange={(e) => setGasMoneyRequested(e.target.checked)}
+          className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+        />
+        <div>
+          <span className="text-sm font-medium text-text">Request gas money</span>
+          <p className="text-xs text-text-muted">Riders will be notified that you&apos;re requesting gas money</p>
+        </div>
+      </label>
       <Button type="submit" disabled={loading} className="w-full" size="lg">
         {loading ? "Creating..." : "Create Carpool"}
       </Button>

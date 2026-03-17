@@ -1,5 +1,6 @@
 interface AvatarProps {
   name: string;
+  imageUrl?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -19,7 +20,17 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-export default function Avatar({ name, size = "md", className = "" }: AvatarProps) {
+export default function Avatar({ name, imageUrl, size = "md", className = "" }: AvatarProps) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className={`rounded-full object-cover shrink-0 ${sizeClasses[size]} ${className}`}
+      />
+    );
+  }
+
   return (
     <div
       className={`inline-flex items-center justify-center rounded-full bg-primary text-white font-semibold shrink-0 ${sizeClasses[size]} ${className}`}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { formatTime, getMonday, toDateString, getWeekDates, formatShortDate } from "@/lib/utils";
 import { getRouteDisplayNames } from "@/lib/routes";
 import Card from "./ui/card";
-import Button from "./ui/button";
 import Badge from "./ui/badge";
 import Avatar from "./ui/avatar";
 import RouteTimeline from "./route-timeline";
@@ -23,6 +23,7 @@ interface Carpool {
   routeGeometry?: string | null;
   routeDistance?: number | null;
   routeDuration?: number | null;
+  gasMoneyRequested?: boolean;
   time: string;
   totalSeats: number;
   availableSeats: number;
@@ -39,7 +40,6 @@ export default function SearchCarpools({
   const [monday, setMonday] = useState(() => getMonday(new Date()));
   const [weekData, setWeekData] = useState<WeekData>({});
   const [loading, setLoading] = useState(true);
-  const [bookingId, setBookingId] = useState<string | null>(null);
 
   const fetchWeek = useCallback(async (mon: Date) => {
     setLoading(true);
@@ -73,26 +73,6 @@ export default function SearchCarpools({
 
   function goToThisWeek() {
     setMonday(getMonday(new Date()));
-  }
-
-  async function handleBook(carpoolId: string, date: string) {
-    setBookingId(carpoolId + date);
-    const res = await fetch("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ carpoolId, date }),
-    });
-
-    const data = await res.json();
-    setBookingId(null);
-
-    if (!res.ok) {
-      alert(data.error || "Failed to book seat");
-      return;
-    }
-
-    fetchWeek(monday);
-    onBooked();
   }
 
   const weekDates = getWeekDates(monday);
@@ -159,15 +139,18 @@ export default function SearchCarpools({
                     No rides available
                   </p>
                 ) : (
-                  <div className="space-y-3 mb-2">
+                  <div className="flex flex-col gap-2 mb-2">
                     {rides.map((ride) => {
                       const routeNames = getRouteDisplayNames(ride);
                       return (
-                        <Card
+                        <Link
                           key={ride.id}
-                          className={`p-4 ${isPast ? "opacity-50" : ""}`}
+                          href={`/rider/carpool/${ride.id}?date=${dateStr}`}
+                          className="block"
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <Card
+                            className={`p-4 hover:border-primary/30 hover:shadow-sm transition-all ${isPast ? "opacity-50" : ""}`}
+                          >
                             <div className="flex items-start gap-3 min-w-0">
                               <Avatar name={ride.driverName} size="sm" />
                               <div className="min-w-0 flex-1">
@@ -189,22 +172,21 @@ export default function SearchCarpools({
                                     className="mt-1"
                                   />
                                 )}
-                                <p className="mt-2 text-xs text-text-muted">
-                                  {ride.availableSeats} seat{ride.availableSeats !== 1 ? "s" : ""} left
-                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <p className="text-xs text-text-muted">
+                                    {ride.availableSeats} seat{ride.availableSeats !== 1 ? "s" : ""} left
+                                  </p>
+                                  {ride.gasMoneyRequested && (
+                                    <span className="rounded-full bg-yellow-100 text-yellow-800 px-2 py-0.5 text-xs font-medium">$ Gas</span>
+                                  )}
+                                  {!isPast && (
+                                    <Badge variant="primary">View &rarr;</Badge>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            {!isPast && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleBook(ride.id, dateStr)}
-                                disabled={bookingId === ride.id + dateStr}
-                              >
-                                {bookingId === ride.id + dateStr ? "..." : "Book"}
-                              </Button>
-                            )}
-                          </div>
-                        </Card>
+                          </Card>
+                        </Link>
                       );
                     })}
                   </div>

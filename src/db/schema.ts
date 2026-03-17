@@ -6,6 +6,12 @@ export const users = pgTable("users", {
   fullName: varchar("full_name", { length: 255 }).notNull(),
   username: varchar("username", { length: 100 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  avatarUrl: varchar("avatar_url", { length: 500 }),
+  nickname: varchar("nickname", { length: 100 }),
+  carModel: varchar("car_model", { length: 100 }),
+  carColor: varchar("car_color", { length: 50 }),
+  licensePlate: varchar("license_plate", { length: 20 }),
+  venmoUsername: varchar("venmo_username", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -28,6 +34,7 @@ export const carpools = pgTable("carpools", {
   routeGeometry: text("route_geometry"),
   routeDistance: integer("route_distance"),
   routeDuration: integer("route_duration"),
+  gasMoneyRequested: boolean("gas_money_requested").default(false).notNull(),
   isActive: boolean("is_active").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

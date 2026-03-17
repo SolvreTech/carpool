@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       routeGeometry: carpools.routeGeometry,
       routeDistance: carpools.routeDistance,
       routeDuration: carpools.routeDuration,
+      gasMoneyRequested: carpools.gasMoneyRequested,
     })
     .from(carpools)
     .innerJoin(users, eq(carpools.driverId, users.id))
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
       routeGeometry: string | null;
       routeDistance: number | null;
       routeDuration: number | null;
+      gasMoneyRequested: boolean;
       time: string;
       totalSeats: number;
       availableSeats: number;
@@ -147,6 +149,7 @@ export async function GET(request: Request) {
           routeGeometry: c.routeGeometry,
           routeDistance: c.routeDistance,
           routeDuration: c.routeDuration,
+          gasMoneyRequested: c.gasMoneyRequested,
           time: c.time,
           totalSeats: c.totalSeats,
           availableSeats: c.totalSeats - booked,
@@ -176,6 +179,7 @@ export async function POST(request: Request) {
       routeGeometry: precomputedGeometry,
       routeDistance: precomputedDistance,
       routeDuration: precomputedDuration,
+      gasMoneyRequested: gasMoneyBody,
     } = body;
 
     if (!route?.trim() || !daysOfWeek?.length || !time || !totalSeats) {
@@ -247,6 +251,7 @@ export async function POST(request: Request) {
         routeGeometry,
         routeDistance,
         routeDuration,
+        gasMoneyRequested: gasMoneyBody === true,
       })
       .returning();
 

@@ -28,6 +28,7 @@ export async function GET() {
       routeGeometry: carpools.routeGeometry,
       routeDistance: carpools.routeDistance,
       routeDuration: carpools.routeDuration,
+      gasMoneyRequested: carpools.gasMoneyRequested,
     })
     .from(carpools)
     .where(eq(carpools.driverId, session.user.id))
