@@ -29,14 +29,16 @@ export async function GET() {
       routeDistance: carpools.routeDistance,
       routeDuration: carpools.routeDuration,
       gasMoneyRequested: carpools.gasMoneyRequested,
+      gasMoneyAmount: carpools.gasMoneyAmount,
       returnCarpoolId: carpools.returnCarpoolId,
       isActive: carpools.isActive,
+      startDate: carpools.startDate,
+      endDate: carpools.endDate,
     })
     .from(carpools)
     .where(eq(carpools.driverId, session.user.id))
     .orderBy(carpools.time);
 
-  // For each carpool, get upcoming riders (bookings with dates >= today)
   const today = new Date().toISOString().split("T")[0];
 
   const carpoolsWithRiders = await Promise.all(
@@ -54,9 +56,40 @@ export async function GET() {
         .innerJoin(users, eq(bookings.riderUserId, users.id))
         .where(eq(bookings.carpoolId, carpool.id));
 
-      return { ...carpool, riders };
+      const searchStart =
+        carpool.startDate && carpool.startDate > today ? carpool.startDate : today;
+      const nextDate = nextOccurrence(
+        carpool.daysOfWeek,
+        searchStart,
+        carpool.endDate ?? null
+      );
+      const bookedOnNext = nextDate
+        ? riders.filter((r) => r.date === nextDate).length
+        : 0;
+      const seatsLeft = Math.max(0, carpool.totalSeats - bookedOnNext);
+
+      return { ...carpool, riders, seatsLeft, nextDate };
     })
   );
 
   return NextResponse.json(carpoolsWithRiders);
+}
+
+// Nearest date >= `from` whose day-of-week is in `days` (0=Sun..6=Sat),
+// bounded above by `until` (inclusive). Returns YYYY-MM-DD or null.
+function nextOccurrence(
+  days: number[],
+  from: string,
+  until: string | null
+): string | null {
+  if (!days.length) return null;
+  const start = new Date(from + "T00:00:00Z");
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(start);
+    d.setUTCDate(d.getUTCDate() + i);
+    const dateStr = d.toISOString().split("T")[0];
+    if (until && dateStr > until) return null;
+    if (days.includes(d.getUTCDay())) return dateStr;
+  }
+  return null;
 }

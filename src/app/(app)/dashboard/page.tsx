@@ -31,7 +31,7 @@ export default async function DashboardPage() {
               I&apos;m Driving
             </h2>
             <p className="mt-1 text-sm text-text-secondary">
-              Create a carpool and offer rides to school
+              Create a carpool and offer rides
             </p>
           </Card>
         </Link>

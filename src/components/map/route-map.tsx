@@ -29,10 +29,18 @@ export default function RouteMap({
 
   const origin = originProp || route?.origin;
   const destination = destProp || route?.destination;
+  // Destructure to primitive deps so effects don't re-run on every parent re-render
+  // (parent often recreates origin/destination object refs when driver position updates).
+  const originLat = origin?.lat;
+  const originLng = origin?.lng;
+  const destLat = destination?.lat;
+  const destLng = destination?.lng;
+  const driverLat = driverPosition?.lat;
+  const driverLng = driverPosition?.lng;
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token || !mapContainer.current || !origin || !destination) {
+    if (!token || !mapContainer.current || originLat == null || originLng == null || destLat == null || destLng == null) {
       if (!token) setNoToken(true);
       return;
     }
@@ -47,8 +55,8 @@ export default function RouteMap({
 
       mapboxgl.accessToken = token!;
 
-      const centerLat = (origin!.lat + destination!.lat) / 2;
-      const centerLng = (origin!.lng + destination!.lng) / 2;
+      const centerLat = (originLat! + destLat!) / 2;
+      const centerLng = (originLng! + destLng!) / 2;
 
       map = new mapboxgl.Map({
         container: mapContainer.current,
@@ -74,8 +82,8 @@ export default function RouteMap({
           dashArray = undefined; // solid line for real route
         } else {
           lineCoords = [
-            [origin!.lng, origin!.lat],
-            [destination!.lng, destination!.lat],
+            [originLng!, originLat!],
+            [destLng!, destLat!],
           ];
           dashArray = [2, 1]; // dashed for straight line fallback
         }
@@ -114,7 +122,7 @@ export default function RouteMap({
         originEl.style.cssText =
           `width:16px;height:16px;border-radius:50%;background:${MAP_COLORS.markerOrigin};border:3px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2);`;
         new mapboxgl.Marker(originEl)
-          .setLngLat([origin!.lng, origin!.lat])
+          .setLngLat([originLng!, originLat!])
           .addTo(m);
 
         // Destination marker (outlined green circle)
@@ -123,7 +131,7 @@ export default function RouteMap({
         destEl.style.cssText =
           `width:16px;height:16px;border-radius:50%;background:white;border:3px solid ${MAP_COLORS.markerDestination};box-shadow:0 2px 4px rgba(0,0,0,0.2);`;
         new mapboxgl.Marker(destEl)
-          .setLngLat([destination!.lng, destination!.lat])
+          .setLngLat([destLng!, destLat!])
           .addTo(m);
 
         // Fit bounds using polyline if available
@@ -133,8 +141,8 @@ export default function RouteMap({
             bounds.extend(coord);
           }
         } else {
-          bounds.extend([origin!.lng, origin!.lat]);
-          bounds.extend([destination!.lng, destination!.lat]);
+          bounds.extend([originLng!, originLat!]);
+          bounds.extend([destLng!, destLat!]);
         }
         m.fitBounds(bounds, { padding: 50 });
       });
@@ -146,30 +154,31 @@ export default function RouteMap({
       canceled = true;
       map?.remove();
       mapRef.current = null;
+      driverMarkerRef.current = null;
     };
-  }, [origin, destination, routeGeometry]);
+  }, [originLat, originLng, destLat, destLng, routeGeometry]);
 
-  // Update driver marker
+  // Update driver marker without re-initializing the map
   useEffect(() => {
-    if (!mapRef.current || !driverPosition) return;
+    if (!mapRef.current || driverLat == null || driverLng == null) return;
 
     async function updateDriver() {
       const mapboxgl = (await import("mapbox-gl")).default;
 
       if (driverMarkerRef.current) {
-        driverMarkerRef.current.setLngLat([driverPosition!.lng, driverPosition!.lat]);
+        driverMarkerRef.current.setLngLat([driverLng!, driverLat!]);
       } else {
         const el = document.createElement("div");
         el.style.cssText =
           `width:20px;height:20px;border-radius:50%;background:${MAP_COLORS.markerDriver};border:3px solid white;box-shadow:0 0 0 4px ${MAP_COLORS.markerDriverGlow};`;
         driverMarkerRef.current = new mapboxgl.Marker(el)
-          .setLngLat([driverPosition!.lng, driverPosition!.lat])
+          .setLngLat([driverLng!, driverLat!])
           .addTo(mapRef.current!);
       }
     }
 
     updateDriver();
-  }, [driverPosition]);
+  }, [driverLat, driverLng]);
 
   if (noToken) {
     return (

@@ -40,6 +40,7 @@ export default function CreateCarpoolForm({
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [origin, setOrigin] = useState<LocationValue | null>(null);
   const [destination, setDestination] = useState<LocationValue | null>(null);
+  const [stops, setStops] = useState<LocationValue[]>([]);
   const [routePreview, setRoutePreview] = useState<{
     geometry: string;
     distance: number;
@@ -49,8 +50,11 @@ export default function CreateCarpoolForm({
   const [selectedSavedRouteId, setSelectedSavedRouteId] = useState<string | null>(null);
   const [saveRoute, setSaveRoute] = useState(false);
   const [gasMoneyRequested, setGasMoneyRequested] = useState(false);
+  const [gasMoneyAmount, setGasMoneyAmount] = useState<string>("");
   const [includeReturn, setIncludeReturn] = useState(false);
   const [returnTime, setReturnTime] = useState("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [returnPreview, setReturnPreview] = useState<{
     geometry: string;
     distance: number;
@@ -81,8 +85,9 @@ export default function CreateCarpoolForm({
       setRoutePreview(null);
       return;
     }
+    const validStops = stops.filter((s): s is LocationValue => !!s);
     debouncePreviewRef.current = setTimeout(async () => {
-      const result = await fetchDirections(origin, destination);
+      const result = await fetchDirections(origin, destination, validStops);
       if (result) {
         setRoutePreview(result);
       }
@@ -90,7 +95,7 @@ export default function CreateCarpoolForm({
     return () => {
       if (debouncePreviewRef.current) clearTimeout(debouncePreviewRef.current);
     };
-  }, [origin, destination]);
+  }, [origin, destination, stops]);
 
   // Fetch return route preview
   useEffect(() => {
@@ -124,11 +129,26 @@ export default function CreateCarpoolForm({
     setRouteName("");
     setOrigin(null);
     setDestination(null);
+    setStops([]);
     setRoutePreview(null);
     setSaveRoute(false);
     setIncludeReturn(false);
     setReturnTime("");
     setReturnPreview(null);
+  }
+
+  function addStop() {
+    setStops((s) => [...s, { lat: 0, lng: 0, name: "" }]);
+  }
+  function updateStop(i: number, loc: LocationValue | null) {
+    setStops((s) => {
+      const copy = [...s];
+      if (loc) copy[i] = loc;
+      return copy;
+    });
+  }
+  function removeStop(i: number) {
+    setStops((s) => s.filter((_, idx) => idx !== i));
   }
 
   function toggleDay(day: number) {
@@ -168,9 +188,29 @@ export default function CreateCarpoolForm({
       return;
     }
 
-    if (includeReturn && !returnTime) {
+    if (startDate && endDate && endDate < startDate) {
+      setError("End date must be on or after start date");
+      return;
+    }
+
+    const isMultiDay =
+      selectedDays.length > 1 ||
+      (!!startDate && !!endDate && endDate > startDate);
+    const withReturn = includeReturn && !isMultiDay;
+
+    if (withReturn && !returnTime) {
       setError("Set a return time");
       return;
+    }
+
+    let gasMoneyCents: number | null = null;
+    if (gasMoneyRequested) {
+      const parsed = parseFloat(gasMoneyAmount);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setError("Enter a gas money amount");
+        return;
+      }
+      gasMoneyCents = Math.round(parsed * 100);
     }
 
     // Read form data synchronously before any async work
@@ -219,10 +259,14 @@ export default function CreateCarpoolForm({
         destinationLat: destination.lat,
         destinationLng: destination.lng,
         destinationName: destination.name,
+        stops: stops.filter((s) => s.name).length ? stops.filter((s) => s.name) : null,
         routeGeometry: routePreview?.geometry,
         routeDistance: routePreview?.distance,
         routeDuration: routePreview?.duration,
         gasMoneyRequested,
+        gasMoneyAmount: gasMoneyCents,
+        startDate: startDate || null,
+        endDate: endDate || null,
       }),
     });
 
@@ -235,7 +279,7 @@ export default function CreateCarpoolForm({
     }
 
     // Create return trip if requested, and link them together
-    if (includeReturn && returnTime && origin && destination) {
+    if (withReturn && returnTime && origin && destination) {
       const returnRes = await fetch("/api/carpools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -254,6 +298,9 @@ export default function CreateCarpoolForm({
           routeDistance: returnPreview?.distance,
           routeDuration: returnPreview?.duration,
           gasMoneyRequested,
+          gasMoneyAmount: gasMoneyCents,
+          startDate: startDate || null,
+          endDate: endDate || null,
           returnCarpoolId: data.id,
         }),
       });
@@ -274,13 +321,17 @@ export default function CreateCarpoolForm({
     setSelectedDays([]);
     setOrigin(null);
     setDestination(null);
+    setStops([]);
     setRoutePreview(null);
     setSelectedSavedRouteId(null);
     setSaveRoute(false);
     setGasMoneyRequested(false);
+    setGasMoneyAmount("");
     setIncludeReturn(false);
     setReturnTime("");
     setReturnPreview(null);
+    setStartDate("");
+    setEndDate("");
     onCreated();
   }
 
@@ -365,7 +416,7 @@ export default function CreateCarpoolForm({
             type="text"
             value={routeName}
             onChange={(e) => setRouteName(e.target.value)}
-            placeholder="e.g. Morning Commute"
+            placeholder="e.g. To School"
             readOnly={isUsingSavedRoute}
             className={isUsingSavedRoute ? "bg-gray-50" : ""}
           />
@@ -377,6 +428,43 @@ export default function CreateCarpoolForm({
           placeholder="Search for pickup location..."
           readOnly={isUsingSavedRoute}
         />
+        {stops.map((stop, i) => (
+          <div key={i} className="flex items-end gap-2">
+            <div className="flex-1">
+              <LocationPicker
+                label={`Stop ${i + 1}`}
+                value={stop.name ? stop : null}
+                onChange={(loc) => updateStop(i, loc)}
+                placeholder="Search for a stop..."
+                readOnly={isUsingSavedRoute}
+              />
+            </div>
+            {!isUsingSavedRoute && (
+              <button
+                type="button"
+                onClick={() => removeStop(i)}
+                className="mb-1 shrink-0 rounded-full p-2 text-text-muted hover:bg-red-50 hover:text-red-600 transition-colors"
+                aria-label={`Remove stop ${i + 1}`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        ))}
+        {!isUsingSavedRoute && (
+          <button
+            type="button"
+            onClick={addStop}
+            className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-emerald-700 transition-colors"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add stop
+          </button>
+        )}
         <LocationPicker
           label="Destination"
           value={destination}
@@ -399,23 +487,30 @@ export default function CreateCarpoolForm({
             )}
           </div>
         )}
-        {origin && destination && (
+        {origin && destination && (() => {
+          const isMultiDay =
+            selectedDays.length > 1 ||
+            (!!startDate && !!endDate && endDate > startDate);
+          return (
           <div className="rounded-xl border border-border p-4 space-y-3">
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className={`flex items-center gap-3 ${isMultiDay ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
               <input
                 type="checkbox"
-                checked={includeReturn}
+                checked={includeReturn && !isMultiDay}
+                disabled={isMultiDay}
                 onChange={(e) => setIncludeReturn(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                className="rounded border-border text-primary focus:ring-primary h-4 w-4 disabled:cursor-not-allowed"
               />
               <div>
                 <span className="text-sm font-medium text-text">Include return trip</span>
                 <p className="text-xs text-text-muted">
-                  Creates a second carpool from {destination.name.split(",")[0]} back to {origin.name.split(",")[0]}
+                  {isMultiDay
+                    ? "Only available on single-day carpools. For multi-day, create a separate return carpool so riders can book each leg independently."
+                    : `Creates a second carpool from ${destination.name.split(",")[0]} back to ${origin.name.split(",")[0]}`}
                 </p>
               </div>
             </label>
-            {includeReturn && (
+            {includeReturn && !isMultiDay && (
               <div className="space-y-3 pt-1">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-text-secondary">
@@ -426,6 +521,7 @@ export default function CreateCarpoolForm({
                     value={returnTime}
                     onChange={(e) => setReturnTime(e.target.value)}
                     required={includeReturn}
+                    className="appearance-none min-w-0 block"
                   />
                 </div>
                 {returnPreview && (
@@ -441,12 +537,13 @@ export default function CreateCarpoolForm({
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       <div>
         <label className="mb-2 block text-sm font-medium text-text-secondary">
-          Days
+          Repeats on
         </label>
         <div className="flex gap-2">
           {DAY_LABELS.map((label, i) => (
@@ -466,10 +563,40 @@ export default function CreateCarpoolForm({
         </div>
       </div>
       <div>
+        <label className="mb-2 block text-sm font-medium text-text-secondary">
+          Date range
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs text-text-muted">Start</label>
+            <Input
+              type="date"
+              value={startDate}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="appearance-none min-w-0 block"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-text-muted">End (optional)</label>
+            <Input
+              type="date"
+              value={endDate}
+              min={startDate || new Date().toISOString().split("T")[0]}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="appearance-none min-w-0 block"
+            />
+          </div>
+        </div>
+        <p className="mt-1.5 text-xs text-text-muted">
+          Leave end empty for an open-ended carpool. Pick the same day for both to run once.
+        </p>
+      </div>
+      <div>
         <label className="mb-1.5 block text-sm font-medium text-text-secondary">
           Time
         </label>
-        <Input name="time" type="time" required />
+        <Input name="time" type="time" required className="appearance-none min-w-0 block" />
       </div>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-text-secondary">
@@ -484,18 +611,40 @@ export default function CreateCarpoolForm({
           defaultValue={3}
         />
       </div>
-      <label className="flex items-center gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={gasMoneyRequested}
-          onChange={(e) => setGasMoneyRequested(e.target.checked)}
-          className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-        />
-        <div>
-          <span className="text-sm font-medium text-text">Request gas money</span>
-          <p className="text-xs text-text-muted">Riders will be notified that you&apos;re requesting gas money</p>
-        </div>
-      </label>
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={gasMoneyRequested}
+            onChange={(e) => setGasMoneyRequested(e.target.checked)}
+            className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+          />
+          <div>
+            <span className="text-sm font-medium text-text">Request gas money</span>
+            <p className="text-xs text-text-muted">Riders will see the requested amount on the ride</p>
+          </div>
+        </label>
+        {gasMoneyRequested && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-text-secondary">
+              Amount per rider
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">$</span>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={gasMoneyAmount}
+                onChange={(e) => setGasMoneyAmount(e.target.value)}
+                placeholder="5.00"
+                required={gasMoneyRequested}
+                className="pl-7"
+              />
+            </div>
+          </div>
+        )}
+      </div>
       <Button type="submit" disabled={loading} className="w-full" size="lg">
         {loading ? "Creating..." : "Create Carpool"}
       </Button>

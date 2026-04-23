@@ -37,7 +37,11 @@ export async function GET(
       routeDistance: carpools.routeDistance,
       routeDuration: carpools.routeDuration,
       gasMoneyRequested: carpools.gasMoneyRequested,
+      gasMoneyAmount: carpools.gasMoneyAmount,
       returnCarpoolId: carpools.returnCarpoolId,
+      startDate: carpools.startDate,
+      endDate: carpools.endDate,
+      stops: carpools.stops,
     })
     .from(carpools)
     .innerJoin(users, eq(carpools.driverId, users.id))

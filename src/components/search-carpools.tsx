@@ -24,6 +24,7 @@ interface Carpool {
   routeDistance?: number | null;
   routeDuration?: number | null;
   gasMoneyRequested?: boolean;
+  gasMoneyAmount?: number | null;
   returnCarpoolId?: string | null;
   rideStatus?: string | null;
   time: string;
@@ -33,6 +34,12 @@ interface Carpool {
 }
 
 type WeekData = Record<string, Carpool[]>;
+
+function formatGasMoney(cents?: number | null): string {
+  if (cents == null) return "$";
+  const dollars = cents / 100;
+  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
 
 export default function SearchCarpools({
   onBooked,
@@ -77,40 +84,62 @@ export default function SearchCarpools({
     setMonday(getMonday(new Date()));
   }
 
+  function jumpToDate(iso: string) {
+    if (!iso) return;
+    const d = new Date(iso + "T00:00:00");
+    setMonday(getMonday(d));
+  }
+
   const weekDates = getWeekDates(monday);
   const today = toDateString(new Date());
 
   return (
     <div>
       {/* Week navigator */}
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          onClick={prevWeek}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-gray-50 transition-colors"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="flex items-center gap-3">
+      <div className="mb-6 space-y-2">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={prevWeek}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-gray-50 transition-colors"
+            aria-label="Previous week"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <span className="text-sm font-semibold text-text">
             {formatShortDate(weekDates[0])} &ndash; {formatShortDate(weekDates[6])}
           </span>
+          <button
+            onClick={nextWeek}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-gray-50 transition-colors"
+            aria-label="Next week"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2">
           <button
             onClick={goToThisWeek}
             className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary hover:bg-emerald-100 transition-colors"
           >
             Today
           </button>
+          <label className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-text-secondary hover:bg-gray-50 cursor-pointer">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Pick a date
+            <input
+              type="date"
+              onChange={(e) => jumpToDate(e.target.value)}
+              min={today}
+              className="sr-only"
+            />
+          </label>
         </div>
-        <button
-          onClick={nextWeek}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-gray-50 transition-colors"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
       </div>
 
       {loading && (
@@ -123,9 +152,9 @@ export default function SearchCarpools({
         <div className="space-y-4">
           {weekDates.map((date) => {
             const dateStr = toDateString(date);
+            if (dateStr < today) return null;
             const rides = weekData[dateStr] ?? [];
             const isToday = dateStr === today;
-            const isPast = dateStr < today;
 
             return (
               <div key={dateStr}>
@@ -137,7 +166,7 @@ export default function SearchCarpools({
                 </div>
 
                 {rides.length === 0 ? (
-                  <p className={`text-sm ${isPast ? "text-text-muted" : "text-text-secondary"} mb-2`}>
+                  <p className="text-sm text-text-secondary mb-2">
                     No rides available
                   </p>
                 ) : (
@@ -157,7 +186,7 @@ export default function SearchCarpools({
 
                         if (returnRide) {
                           return (
-                            <div key={ride.id} className={isPast ? "opacity-50" : ""}>
+                            <div key={ride.id}>
                               <div className="mb-1 flex items-center gap-1.5">
                                 <svg className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
@@ -177,20 +206,22 @@ export default function SearchCarpools({
                                     </div>
                                     <Avatar name={ride.driverName} imageUrl={ride.driverAvatarUrl} size="sm" />
                                     <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-text truncate">{ride.driverName}</span>
+                                      <div className="text-sm font-semibold text-text">{ride.driverName}</div>
+                                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                                         <Badge variant="secondary">{formatTime(ride.time)}</Badge>
+                                        <span className="text-xs text-text-muted">
+                                          {ride.originName?.split(",")[0]} &rarr; {ride.destinationName?.split(",")[0]}
+                                        </span>
                                       </div>
-                                      <p className="text-xs text-text-muted">
-                                        {ride.originName?.split(",")[0]} &rarr; {ride.destinationName?.split(",")[0]}
-                                      </p>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       {ride.rideStatus === "in_progress" && (
                                         <span className="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs font-medium">In Progress</span>
                                       )}
                                       {ride.gasMoneyRequested && (
-                                        <span className="rounded-full bg-yellow-100 text-yellow-800 px-2 py-0.5 text-xs font-medium">$ Gas</span>
+                                        <span className="rounded-full bg-yellow-100 text-yellow-800 px-2 py-0.5 text-xs font-medium">
+                                          {formatGasMoney(ride.gasMoneyAmount)} Gas
+                                        </span>
                                       )}
                                       <span className="text-xs text-text-muted">{ride.availableSeats} seat{ride.availableSeats !== 1 ? "s" : ""}</span>
                                     </div>
@@ -226,27 +257,29 @@ export default function SearchCarpools({
                           <div
                             className={`rounded-2xl border border-border bg-white overflow-hidden transition-all ${
                               isInProgress ? "opacity-60" : "hover:border-primary/30 hover:shadow-sm"
-                            } ${isPast ? "opacity-50" : ""}`}
+                            }`}
                           >
                             <div className="flex items-center gap-3 px-4 py-3">
                               <Avatar name={ride.driverName} imageUrl={ride.driverAvatarUrl} size="sm" />
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-text truncate">{ride.driverName}</span>
+                                <div className="text-sm font-semibold text-text">{ride.driverName}</div>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                                   <Badge variant="secondary">{formatTime(ride.time)}</Badge>
+                                  <span className="text-xs text-text-muted">
+                                    {routeNames
+                                      ? `${routeNames.origin.split(",")[0]} → ${routeNames.destination?.split(",")[0] || ""}`
+                                      : ride.route}
+                                  </span>
                                 </div>
-                                <p className="text-xs text-text-muted">
-                                  {routeNames
-                                    ? `${routeNames.origin.split(",")[0]} → ${routeNames.destination?.split(",")[0] || ""}`
-                                    : ride.route}
-                                </p>
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {isInProgress && (
                                   <span className="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs font-medium">In Progress</span>
                                 )}
                                 {ride.gasMoneyRequested && (
-                                  <span className="rounded-full bg-yellow-100 text-yellow-800 px-2 py-0.5 text-xs font-medium">$ Gas</span>
+                                  <span className="rounded-full bg-yellow-100 text-yellow-800 px-2 py-0.5 text-xs font-medium">
+                                    {formatGasMoney(ride.gasMoneyAmount)} Gas
+                                  </span>
                                 )}
                                 <span className="text-xs text-text-muted">{ride.availableSeats} seat{ride.availableSeats !== 1 ? "s" : ""}</span>
                               </div>

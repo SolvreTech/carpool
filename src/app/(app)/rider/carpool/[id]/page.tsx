@@ -12,6 +12,11 @@ import Avatar from "@/components/ui/avatar";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { formatTime } from "@/lib/utils";
 
+function formatDollars(cents: number): string {
+  const dollars = cents / 100;
+  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
 interface CarpoolData {
   id: string;
   driverId: string;
@@ -31,6 +36,8 @@ interface CarpoolData {
   routeDistance?: number | null;
   routeDuration?: number | null;
   gasMoneyRequested?: boolean;
+  gasMoneyAmount?: number | null;
+  stops?: { lat: number; lng: number; name: string }[] | null;
   returnCarpoolId?: string | null;
   rideStatus?: string | null;
   riders?: { name: string; avatarUrl: string | null }[];
@@ -172,6 +179,7 @@ export default function CarpoolDetailPage() {
             <RouteTimeline
               origin={carpool.originName || "Origin"}
               destination={carpool.destinationName || "Destination"}
+              stops={carpool.stops ?? undefined}
               distance={carpool.routeDistance}
               duration={carpool.routeDuration}
             />
@@ -270,9 +278,15 @@ export default function CarpoolDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <p className="text-sm font-semibold text-text">Gas money requested</p>
+                  <p className="text-sm font-semibold text-text">
+                    {carpool.gasMoneyAmount != null
+                      ? `${formatDollars(carpool.gasMoneyAmount)} for gas`
+                      : "Gas money requested"}
+                  </p>
                   <p className="text-xs text-text-secondary mt-0.5">
-                    This driver is requesting riders to chip in for gas.
+                    {carpool.gasMoneyAmount != null
+                      ? "This driver requests riders chip in for gas."
+                      : "This driver is requesting riders to chip in for gas."}
                   </p>
                   {driver?.venmoUsername && (
                     <a

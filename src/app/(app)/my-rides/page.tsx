@@ -290,9 +290,10 @@ export default function MyRidesPage() {
         <div className="space-y-4">
           {weekDates.map((date) => {
             const dateStr = toDateString(date);
+            if (dateStr < today) return null;
             const rides = weekData[dateStr] ?? [];
             const isToday = dateStr === today;
-            const isPast = dateStr < today;
+            const isPast = false;
 
             if (rides.length === 0) return null;
 

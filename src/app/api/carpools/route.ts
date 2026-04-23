@@ -22,14 +22,17 @@ export async function GET(request: Request) {
     );
   }
 
-  // Compute 7 days starting from the given Monday
+  // Compute 7 days starting from the given Monday; drop dates before today
+  const today = new Date().toISOString().split("T")[0];
   const monday = new Date(weekOf + "T00:00:00Z");
   const days: { date: string; dayOfWeek: number }[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setUTCDate(d.getUTCDate() + i);
+    const dateStr = d.toISOString().split("T")[0];
+    if (dateStr < today) continue;
     days.push({
-      date: d.toISOString().split("T")[0],
+      date: dateStr,
       dayOfWeek: d.getUTCDay(),
     });
   }
@@ -62,7 +65,10 @@ export async function GET(request: Request) {
       routeDistance: carpools.routeDistance,
       routeDuration: carpools.routeDuration,
       gasMoneyRequested: carpools.gasMoneyRequested,
+      gasMoneyAmount: carpools.gasMoneyAmount,
       returnCarpoolId: carpools.returnCarpoolId,
+      startDate: carpools.startDate,
+      endDate: carpools.endDate,
     })
     .from(carpools)
     .innerJoin(users, eq(carpools.driverId, users.id))
@@ -155,6 +161,7 @@ export async function GET(request: Request) {
       routeDistance: number | null;
       routeDuration: number | null;
       gasMoneyRequested: boolean;
+      gasMoneyAmount: number | null;
       returnCarpoolId: string | null;
       rideStatus: string | null;
       time: string;
@@ -167,6 +174,8 @@ export async function GET(request: Request) {
   for (const day of days) {
     const dayCarpools = allCarpools
       .filter((c) => c.daysOfWeek.includes(day.dayOfWeek))
+      .filter((c) => !c.startDate || c.startDate <= day.date)
+      .filter((c) => !c.endDate || day.date <= c.endDate)
       .map((c) => {
         const booked = countMap.get(`${c.id}:${day.date}`) ?? 0;
         return {
@@ -185,6 +194,7 @@ export async function GET(request: Request) {
           routeDistance: c.routeDistance,
           routeDuration: c.routeDuration,
           gasMoneyRequested: c.gasMoneyRequested,
+          gasMoneyAmount: c.gasMoneyAmount,
           returnCarpoolId: c.returnCarpoolId,
           rideStatus: statusMap.get(`${c.id}:${day.date}`) || null,
           time: c.time,
@@ -217,7 +227,11 @@ export async function POST(request: Request) {
       routeDistance: precomputedDistance,
       routeDuration: precomputedDuration,
       gasMoneyRequested: gasMoneyBody,
+      gasMoneyAmount: gasMoneyAmountBody,
       returnCarpoolId: returnCarpoolIdBody,
+      startDate: startDateBody,
+      endDate: endDateBody,
+      stops: stopsBody,
     } = body;
 
     if (!route?.trim() || !daysOfWeek?.length || !time || !totalSeats) {
@@ -239,6 +253,51 @@ export async function POST(request: Request) {
         { error: "Seats must be between 1 and 10" },
         { status: 400 }
       );
+    }
+
+    let gasMoneyAmount: number | null = null;
+    if (gasMoneyBody === true) {
+      if (
+        typeof gasMoneyAmountBody !== "number" ||
+        !Number.isFinite(gasMoneyAmountBody) ||
+        gasMoneyAmountBody <= 0
+      ) {
+        return NextResponse.json(
+          { error: "Gas money amount is required" },
+          { status: 400 }
+        );
+      }
+      gasMoneyAmount = Math.round(gasMoneyAmountBody);
+    }
+
+    const startDate = typeof startDateBody === "string" && startDateBody ? startDateBody : null;
+    const endDate = typeof endDateBody === "string" && endDateBody ? endDateBody : null;
+    if (startDate && endDate && endDate < startDate) {
+      return NextResponse.json(
+        { error: "End date must be on or after start date" },
+        { status: 400 }
+      );
+    }
+
+    let stops: { lat: number; lng: number; name: string }[] | null = null;
+    if (Array.isArray(stopsBody) && stopsBody.length > 0) {
+      const cleaned = stopsBody
+        .filter(
+          (s) =>
+            s &&
+            typeof s.lat === "number" &&
+            typeof s.lng === "number" &&
+            typeof s.name === "string" &&
+            s.name.trim()
+        )
+        .map((s) => ({ lat: s.lat, lng: s.lng, name: s.name.trim() }));
+      if (cleaned.length > 23) {
+        return NextResponse.json(
+          { error: "Too many stops (max 23)" },
+          { status: 400 }
+        );
+      }
+      stops = cleaned.length ? cleaned : null;
     }
 
     const validDays = daysOfWeek.every(
@@ -263,7 +322,8 @@ export async function POST(request: Request) {
     } else if (originLat && originLng && destinationLat && destinationLng) {
       const directions = await fetchDirections(
         { lat: originLat, lng: originLng },
-        { lat: destinationLat, lng: destinationLng }
+        { lat: destinationLat, lng: destinationLng },
+        stops ?? []
       );
       if (directions) {
         routeGeometry = directions.geometry;
@@ -290,6 +350,10 @@ export async function POST(request: Request) {
         routeDistance,
         routeDuration,
         gasMoneyRequested: gasMoneyBody === true,
+        gasMoneyAmount,
+        startDate,
+        endDate,
+        stops,
         returnCarpoolId: returnCarpoolIdBody || null,
       })
       .returning();

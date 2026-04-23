@@ -40,7 +40,20 @@ interface Carpool {
   daysOfWeek: number[];
   time: string;
   totalSeats: number;
+  seatsLeft: number;
+  nextDate: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   riders: Rider[];
+}
+
+function formatRange(start?: string | null, end?: string | null): string | null {
+  if (!start && !end) return null;
+  const fmt = (s: string) =>
+    new Date(s + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
+  if (start) return `From ${fmt(start)}`;
+  return `Until ${fmt(end!)}`;
 }
 
 function CarpoolCard({
@@ -82,9 +95,12 @@ function CarpoolCard({
               <Badge key={d} variant="primary">{DAY_LABELS[d]}</Badge>
             ))}
             <Badge variant="secondary">{formatTime(carpool.time)}</Badge>
-            <Badge variant="secondary">
-              {carpool.totalSeats} seat{carpool.totalSeats !== 1 ? "s" : ""}
+            <Badge variant={carpool.seatsLeft === 0 ? "secondary" : "primary"}>
+              {carpool.seatsLeft} of {carpool.totalSeats} seat{carpool.totalSeats !== 1 ? "s" : ""} left
             </Badge>
+            {formatRange(carpool.startDate, carpool.endDate) && (
+              <Badge variant="secondary">{formatRange(carpool.startDate, carpool.endDate)}</Badge>
+            )}
           </div>
         </div>
         <button

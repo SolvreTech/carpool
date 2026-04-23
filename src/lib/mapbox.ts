@@ -8,12 +8,16 @@ interface DirectionsResult {
 
 export async function fetchDirections(
   origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number }
+  destination: { lat: number; lng: number },
+  stops: { lat: number; lng: number }[] = []
 ): Promise<DirectionsResult | null> {
   if (!MAPBOX_TOKEN) return null;
 
   try {
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?geometries=polyline6&overview=full&access_token=${MAPBOX_TOKEN}`;
+    const points = [origin, ...stops, destination]
+      .map((p) => `${p.lng},${p.lat}`)
+      .join(";");
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${points}?geometries=polyline6&overview=full&access_token=${MAPBOX_TOKEN}`;
     const res = await fetch(url);
     if (!res.ok) return null;
 

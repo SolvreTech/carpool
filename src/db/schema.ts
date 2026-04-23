@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, date, time, integer, timestamp, uniqueIndex, boolean, doublePrecision, text } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, date, time, integer, timestamp, uniqueIndex, boolean, doublePrecision, text, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -35,6 +35,10 @@ export const carpools = pgTable("carpools", {
   routeDistance: integer("route_distance"),
   routeDuration: integer("route_duration"),
   gasMoneyRequested: boolean("gas_money_requested").default(false).notNull(),
+  gasMoneyAmount: integer("gas_money_amount"), // cents; present when gasMoneyRequested=true
+  stops: jsonb("stops").$type<{ lat: number; lng: number; name: string }[]>(),
+  startDate: date("start_date"), // null = starts today / no lower bound
+  endDate: date("end_date"),     // null = open-ended
   returnCarpoolId: uuid("return_carpool_id"),
   isActive: boolean("is_active").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

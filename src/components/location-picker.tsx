@@ -18,11 +18,14 @@ interface LocationPickerProps {
   readOnly?: boolean;
 }
 
-interface GeoResult {
-  id: string;
-  place_name: string;
-  center: [number, number]; // [lng, lat]
-  text: string;
+interface Suggestion {
+  mapbox_id: string;
+  name: string;
+  name_preferred?: string;
+  feature_type: string;
+  address?: string;
+  full_address?: string;
+  place_formatted?: string;
 }
 
 // Shared user location — resolved once, reused across all LocationPicker instances
@@ -53,7 +56,8 @@ export default function LocationPicker({
   readOnly = false,
 }: LocationPickerProps) {
   const [query, setQuery] = useState(value?.name || "");
-  const [results, setResults] = useState<GeoResult[]>([]);
+  const [subText, setSubText] = useState<string>("");
+  const [results, setResults] = useState<Suggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
@@ -62,6 +66,12 @@ export default function LocationPicker({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  // Search Box sessions group suggest+retrieve calls for billing.
+  const sessionTokenRef = useRef<string>(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2)
+  );
 
   // Resolve user location once on mount
   useEffect(() => {
@@ -92,17 +102,28 @@ export default function LocationPicker({
     }
 
     const loc = await getUserLocation();
-    const proximityParam = loc[0] !== 0 || loc[1] !== 0
-      ? `&proximity=${loc[0]},${loc[1]}`
-      : "&proximity=ip";
+    const proximityParam =
+      loc[0] !== 0 || loc[1] !== 0
+        ? `&proximity=${loc[0]},${loc[1]}`
+        : "&proximity=ip";
 
     try {
-      const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?limit=5${proximityParam}&access_token=${token}`
-      );
+      // Search Box API has far better POI coverage than v5 places
+      // (schools, businesses, landmarks). country=us keeps us out
+      // of matches like "Pleasant Grove, Australia".
+      const url =
+        `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(text)}` +
+        `&limit=8` +
+        `&country=us` +
+        `&language=en` +
+        `&types=poi,address,place,locality,neighborhood,street` +
+        proximityParam +
+        `&session_token=${sessionTokenRef.current}` +
+        `&access_token=${token}`;
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
-      setResults(data.features || []);
+      setResults(data.suggestions || []);
       setShowDropdown(true);
     } catch {
       // ignore
@@ -111,26 +132,59 @@ export default function LocationPicker({
 
   function handleInputChange(text: string) {
     setQuery(text);
+    setSubText("");
     if (readOnly) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => searchLocations(text), 300);
   }
 
-  function selectResult(result: GeoResult) {
-    const location: LocationValue = {
-      lng: result.center[0],
-      lat: result.center[1],
-      name: result.place_name,
-    };
-    onChange(location);
-    setQuery(result.place_name);
-    setShowDropdown(false);
+  async function selectResult(result: Suggestion) {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return;
 
-    // Update map marker if map is open
-    if (mapRef.current && markerRef.current) {
-      markerRef.current.setLngLat([location.lng, location.lat]);
-      mapRef.current.flyTo({ center: [location.lng, location.lat], zoom: 15 });
+    // Preserve the POI name as the primary label; show address as subtext.
+    const displayName = result.name;
+    const addressSub =
+      result.full_address && result.full_address !== result.name
+        ? result.full_address
+        : result.place_formatted && result.place_formatted !== result.name
+          ? result.place_formatted
+          : result.address && result.address !== result.name
+            ? result.address
+            : "";
+
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/search/searchbox/v1/retrieve/${encodeURIComponent(result.mapbox_id)}?session_token=${sessionTokenRef.current}&access_token=${token}`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const feature = data.features?.[0];
+      const coords = feature?.geometry?.coordinates as [number, number] | undefined;
+      if (!coords) return;
+
+      const location: LocationValue = {
+        lng: coords[0],
+        lat: coords[1],
+        name: displayName,
+      };
+      onChange(location);
+      setQuery(displayName);
+      setSubText(addressSub);
+      setShowDropdown(false);
+      // Rotate session token for billing correctness on next search.
+      sessionTokenRef.current =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+
+      if (mapRef.current && markerRef.current) {
+        markerRef.current.setLngLat([location.lng, location.lat]);
+        mapRef.current.flyTo({ center: [location.lng, location.lat], zoom: 15 });
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -179,11 +233,17 @@ export default function LocationPicker({
           );
           if (!res.ok) return;
           const data = await res.json();
-          const name = data.features?.[0]?.place_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-          onChange({ lat, lng, name });
-          setQuery(name);
+          const feature = data.features?.[0];
+          const primary = feature?.text || feature?.place_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          const address: string = feature?.place_name && feature?.place_name !== primary ? feature.place_name : "";
+          onChange({ lat, lng, name: primary });
+          setQuery(primary);
+          setSubText(address);
         } catch {
-          onChange({ lat, lng, name: `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
+          const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          onChange({ lat, lng, name: fallback });
+          setQuery(fallback);
+          setSubText("");
         }
       }
 
@@ -237,20 +297,23 @@ export default function LocationPicker({
           </button>
         )}
       </div>
+      {subText && (
+        <p className="mt-1 text-xs text-text-muted truncate">{subText}</p>
+      )}
 
       {/* Autocomplete dropdown */}
       {showDropdown && results.length > 0 && (
         <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-white shadow-lg overflow-hidden">
           {results.map((r) => (
             <button
-              key={r.id}
+              key={r.mapbox_id}
               type="button"
               onClick={() => selectResult(r)}
               className="w-full px-4 py-3 text-left text-sm hover:bg-primary-50 transition-colors border-b border-border-light last:border-0"
             >
-              <span className="font-medium text-text">{r.text}</span>
+              <span className="font-medium text-text">{r.name}</span>
               <span className="block text-xs text-text-muted truncate">
-                {r.place_name}
+                {r.full_address || r.place_formatted || r.address || ""}
               </span>
             </button>
           ))}
