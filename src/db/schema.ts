@@ -117,6 +117,23 @@ export const rideInstances = pgTable(
   ]
 );
 
+export const deviceTokens = pgTable(
+  "device_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expoPushToken: varchar("expo_push_token", { length: 255 }).notNull(),
+    platform: varchar("platform", { length: 16 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("device_token_unique_idx").on(table.expoPushToken),
+  ]
+);
+
 export const driverBlocks = pgTable(
   "driver_blocks",
   {

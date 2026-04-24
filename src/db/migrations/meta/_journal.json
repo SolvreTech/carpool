@@ -15,6 +15,13 @@
       "when": 1776980710523,
       "tag": "0001_powerful_dorian_gray",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776983100317,
+      "tag": "0002_serious_quicksilver",
+      "breakpoints": true
     }
   ]
 }
